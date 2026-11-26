@@ -1,5 +1,16 @@
 import { useEffect, useState, type FormEvent } from 'react';
-import { CheckCircle2, KeyRound, Plus, ShieldCheck, UserCheck, X, XCircle } from 'lucide-react';
+import {
+  ArrowDownToLine,
+  ArrowUpFromLine,
+  CheckCircle2,
+  FileSpreadsheet,
+  KeyRound,
+  Plus,
+  ShieldCheck,
+  UserCheck,
+  X,
+  XCircle,
+} from 'lucide-react';
 import { ApiError, apiRequest, formatDateTime } from '../lib/api';
 import type { StaffUser } from '../types';
 
@@ -23,6 +34,7 @@ export function StaffManagementView({ authToken, currentUser, onNotify }: StaffM
   const [passwordModalUser, setPasswordModalUser] = useState<StaffUser | null>(null);
   const [newPassword, setNewPassword] = useState('');
   const [savingPassword, setSavingPassword] = useState(false);
+  const [syncingDirection, setSyncingDirection] = useState<'pull' | 'push' | null>(null);
 
   const loadStaff = async () => {
     setLoading(true);
@@ -107,13 +119,74 @@ export function StaffManagementView({ authToken, currentUser, onNotify }: StaffM
     }
   }
 
+  async function handleSheetSync(direction: 'pull' | 'push') {
+    setSyncingDirection(direction);
+    try {
+      const res = await apiRequest<{ ok: boolean; message: string }>(
+        `/api/admin/sheet-sync/${direction}`,
+        { method: 'POST', token: authToken }
+      );
+      onNotify('success', res.message);
+      if (direction === 'pull') {
+        await loadStaff();
+      }
+    } catch (err) {
+      onNotify(
+        'danger',
+        err instanceof ApiError
+          ? err.message
+          : 'Gagal sinkronisasi dengan Google Sheet. Pastikan URL Apps Script sudah diatur.'
+      );
+    } finally {
+      setSyncingDirection(null);
+    }
+  }
+
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold text-[#0B1F3A]">Manajemen Akun Pengawas & Admin</h1>
-        <p className="text-sm text-slate-600 mt-0.5">
-          Khusus Admin. Tambahkan akun pengawas ruang dan batasi kelas pengawasan sesuai pembagian tugas.
-        </p>
+      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold text-[#0B1F3A]">Manajemen Akun Pengawas & Admin</h1>
+          <p className="text-sm text-slate-600 mt-0.5">
+            Terhubung dua arah dengan tab <code className="font-mono text-blue-800">staff_users</code> di Google Sheet
+            untuk memudahkan pendaftaran massal akun Pengawas & Admin.
+          </p>
+        </div>
+
+        <div className="flex items-center gap-2 shrink-0 flex-wrap">
+          <button
+            type="button"
+            disabled={syncingDirection !== null}
+            onClick={() => handleSheetSync('pull')}
+            className="px-3.5 py-2 rounded-lg bg-white border border-slate-300 hover:bg-slate-50 disabled:opacity-50 text-slate-800 text-xs font-semibold inline-flex items-center gap-1.5 whitespace-nowrap"
+          >
+            <ArrowDownToLine className="w-3.5 h-3.5 text-blue-700" />
+            {syncingDirection === 'pull' ? 'Menarik...' : 'Tarik Akun dari Sheet'}
+          </button>
+          <button
+            type="button"
+            disabled={syncingDirection !== null}
+            onClick={() => handleSheetSync('push')}
+            className="px-3.5 py-2 rounded-lg bg-emerald-700 hover:bg-emerald-800 disabled:opacity-50 text-white text-xs font-semibold inline-flex items-center gap-1.5 whitespace-nowrap"
+          >
+            <ArrowUpFromLine className="w-3.5 h-3.5" />
+            {syncingDirection === 'push' ? 'Mengirim...' : 'Kirim Akun ke Sheet'}
+          </button>
+        </div>
+      </div>
+
+      {/* Google Sheet Registration Tip */}
+      <div className="p-4 rounded-xl bg-blue-50/70 border border-blue-200 text-xs text-slate-700 flex items-start gap-2.5 leading-relaxed">
+        <FileSpreadsheet className="w-4 h-4 text-emerald-700 shrink-0 mt-0.5" />
+        <span>
+          <strong>Pendaftaran Akun via Google Sheet:</strong> Tambahkan baris baru pada tab{' '}
+          <code className="font-mono text-blue-900">staff_users</code> dengan kolom{' '}
+          <code className="font-mono text-blue-900">
+            username, full_name, role (ADMIN/PENGAWAS), assigned_classes, active (AKTIF), password (min. 6 karakter)
+          </code>
+          . Saat sinkronisasi berjalan, server otomatis mengenkripsi kata sandi dengan <code className="font-mono">scrypt</code>{' '}
+          dan mengganti kolom sandi di Google Sheet menjadi <code className="font-mono">[TERENKRIPSI]</code> agar tetap aman.
+        </span>
       </div>
 
       {/* Add Staff Form */}

@@ -1,6 +1,6 @@
 import crypto from 'crypto';
 import type { Exam, Student } from '../src/types.ts';
-import { store, validateGoogleFormUrl } from './store.ts';
+import { hashPassword, store, validateGoogleFormUrl } from './store.ts';
 
 /**
  * Strict SSRF protection: Only allow official Google Apps Script HTTPS Web App endpoints.
@@ -85,10 +85,22 @@ export class GoogleSheetSyncService {
     this.isSyncing = true;
     const nowIso = new Date().toISOString();
     try {
+      const sanitizedStaffUsers = state.staff_users.map((u) => ({
+        id: u.id,
+        username: u.username,
+        full_name: u.full_name,
+        role: u.role,
+        assigned_classes: u.assigned_classes.join(', '),
+        active: u.active ? 'AKTIF' : 'NONAKTIF',
+        password: '[TERENKRIPSI]',
+        created_at: u.created_at,
+      }));
+
       const payload = {
         action: 'push',
         secret: cfg.sync_secret || '',
         data: {
+          staff_users: sanitizedStaffUsers,
           students: state.students,
           exams: state.exams,
           exam_sessions: state.exam_sessions,
@@ -124,6 +136,7 @@ export class GoogleSheetSyncService {
       }
 
       const totalRecords =
+        state.staff_users.length +
         state.students.length +
         state.exams.length +
         state.exam_sessions.length +
@@ -211,7 +224,11 @@ export class GoogleSheetSyncService {
       let parsed: {
         ok?: boolean;
         error?: string;
-        data?: { students?: Array<Record<string, unknown>>; exams?: Array<Record<string, unknown>> };
+        data?: {
+          staff_users?: Array<Record<string, unknown>>;
+          students?: Array<Record<string, unknown>>;
+          exams?: Array<Record<string, unknown>>;
+        };
       } = {};
       try {
         parsed = JSON.parse(text);
@@ -300,9 +317,74 @@ export class GoogleSheetSyncService {
         mergedCount++;
       }
 
+      let ingestedPlaintextStaffPassword = false;
+      const incomingStaff = parsed.data?.staff_users || [];
+      for (const row of incomingStaff) {
+        const username = String(row.username ?? '').trim().toLowerCase();
+        const fullName = String(row.full_name ?? '').trim();
+        if (!username || !fullName || !/^[a-z0-9._-]{3,40}$/.test(username)) continue;
+
+        const rawRole = String(row.role ?? 'PENGAWAS').trim().toUpperCase();
+        const role: 'ADMIN' | 'PENGAWAS' = rawRole === 'ADMIN' ? 'ADMIN' : 'PENGAWAS';
+
+        const rawClasses = String(row.assigned_classes ?? '').trim();
+        const assignedClasses = rawClasses
+          ? rawClasses
+              .split(',')
+              .map((c) => c.trim())
+              .filter(Boolean)
+          : [];
+
+        const rawActive = String(row.active ?? 'AKTIF').trim().toUpperCase();
+        const active =
+          rawActive !== 'FALSE' && rawActive !== 'NONAKTIF' && rawActive !== '0' && rawActive !== 'TIDAK';
+
+        const rawPassword = String(row.password ?? '').trim();
+        const hasNewPassword =
+          rawPassword.length >= 6 &&
+          rawPassword !== '[TERENKRIPSI]' &&
+          rawPassword.toUpperCase() !== '[ENCRYPTED]';
+
+        const existing = state.staff_users.find((u) => u.username.toLowerCase() === username);
+        if (existing) {
+          // Never deactivate the last remaining active ADMIN
+          const otherActiveAdmins = state.staff_users.filter(
+            (u) => u.id !== existing.id && u.role === 'ADMIN' && u.active
+          ).length;
+          existing.full_name = fullName;
+          if (role === 'ADMIN' || otherActiveAdmins > 0) {
+            existing.role = role;
+          }
+          if (active || existing.role !== 'ADMIN' || otherActiveAdmins > 0) {
+            existing.active = active;
+          }
+          existing.assigned_classes = assignedClasses;
+          if (hasNewPassword) {
+            existing.password_hash = hashPassword(rawPassword);
+            ingestedPlaintextStaffPassword = true;
+          }
+          mergedCount++;
+        } else if (hasNewPassword) {
+          // Only create brand-new staff accounts from sheet if a valid initial password (>=6 chars) is provided
+          state.staff_users.push({
+            id: String(row.id || `stf-${crypto.randomUUID().slice(0, 8)}`),
+            username,
+            full_name: fullName,
+            role,
+            assigned_classes: assignedClasses,
+            active,
+            password_hash: hashPassword(rawPassword),
+            created_at: String(row.created_at || nowIso),
+          });
+          state.initialized_auth = true;
+          ingestedPlaintextStaffPassword = true;
+          mergedCount++;
+        }
+      }
+
       cfg.last_sync_at = nowIso;
       cfg.last_sync_status = 'SUCCESS';
-      cfg.last_sync_message = `Berhasil menarik ${mergedCount} data Master Siswa & Ujian dari Google Sheet.`;
+      cfg.last_sync_message = `Berhasil menarik ${mergedCount} data Master Siswa, Ujian & Akun Staff dari Google Sheet.`;
       cfg.history.unshift({
         id: `syn-${crypto.randomUUID().slice(0, 8)}`,
         direction: 'PULL',
@@ -319,6 +401,12 @@ export class GoogleSheetSyncService {
       });
       store.save(false);
       this.onAfterSync?.();
+
+      // Immediately replace any plaintext password typed in Google Sheet with [TERENKRIPSI]
+      if (ingestedPlaintextStaffPassword) {
+        this.isSyncing = false;
+        await this.pushAll(`${triggeredBy} (Masking Sandi Staff)`);
+      }
 
       return { ok: true, message: cfg.last_sync_message, records: mergedCount };
     } catch (err) {

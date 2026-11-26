@@ -1060,7 +1060,8 @@ async function createAppServer() {
     };
     state.staff_users.push(newStaff);
     store.addAudit('staff_upsert', req.staff!.full_name, 'ADMIN', newStaff.id, `Menambahkan akun ${newStaff.role} (${newStaff.username})`);
-    store.save(false);
+    store.save(true);
+    broadcastDashboardUpdate('staff:created');
 
     res.status(201).json({
       staff: {
@@ -1093,7 +1094,8 @@ async function createAppServer() {
       found.password_hash = hashPassword(password.trim());
     }
     store.addAudit('staff_upsert', req.staff!.full_name, 'ADMIN', found.id, `Memperbarui akun ${found.role} (${found.username})`);
-    store.save(false);
+    store.save(true);
+    broadcastDashboardUpdate('staff:updated');
 
     res.json({
       staff: {

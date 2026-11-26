@@ -18,6 +18,7 @@
  */
 
 var SHEET_SCHEMAS = {
+  staff_users: ['id', 'username', 'full_name', 'role', 'assigned_classes', 'active', 'password', 'created_at'],
   students: ['id', 'nis', 'nama', 'kelas', 'jurusan', 'status', 'updated_at'],
   exams: ['id', 'nama_ujian', 'mata_pelajaran', 'kelas', 'tanggal', 'jam_mulai', 'jam_selesai', 'durasi', 'google_form_url', 'status', 'created_at', 'updated_at'],
   exam_sessions: ['session_id', 'exam_id', 'student_id', 'started_at', 'ended_at', 'status', 'violation_count', 'current_token_id', 'last_activity', 'last_activity_at', 'unlocked_count', 'is_fullscreen'],
@@ -143,6 +144,7 @@ function doGet(e) {
       ok: true,
       timestamp: new Date().toISOString(),
       data: {
+        staff_users: readSheetAsObjects('staff_users'),
         students: readSheetAsObjects('students'),
         exams: readSheetAsObjects('exams')
       }

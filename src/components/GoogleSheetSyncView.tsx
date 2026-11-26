@@ -149,7 +149,7 @@ export function GoogleSheetSyncView({ authToken, onNotify }: GoogleSheetSyncView
             className="px-3.5 py-2 rounded-lg bg-white border border-slate-300 hover:bg-slate-50 disabled:opacity-50 text-slate-800 text-xs font-semibold inline-flex items-center gap-1.5 whitespace-nowrap"
           >
             <ArrowDownToLine className="w-3.5 h-3.5 text-blue-700" />
-            {syncingAction === 'pull' ? 'Menarik...' : 'Tarik Master Siswa & Ujian'}
+            {syncingAction === 'pull' ? 'Menarik...' : 'Tarik Siswa, Ujian & Akun'}
           </button>
           <button
             type="button"
@@ -216,7 +216,7 @@ export function GoogleSheetSyncView({ authToken, onNotify }: GoogleSheetSyncView
                 <div>
                   <div className="text-xs font-semibold text-slate-900">Aktifkan Sinkronisasi Otomatis</div>
                   <div className="text-[11px] text-slate-500 mt-0.5">
-                    Menjaga data Master Siswa, Ujian, dan Sesi selalu terbarui di sistem utama & Sheet.
+                    Menjaga data Akun Staff, Master Siswa, Ujian, dan Sesi selalu terbarui di sistem utama & Sheet.
                   </div>
                 </div>
               </label>
@@ -317,10 +317,11 @@ export function GoogleSheetSyncView({ authToken, onNotify }: GoogleSheetSyncView
               Skrip Google Apps Script (<code className="font-mono text-blue-700">Code.gs</code>)
             </h2>
             <p className="text-xs text-slate-500 mt-0.5">
-              Otomatis membuat 7 tab lembar kerja (<code className="font-mono">students</code>,{' '}
-              <code className="font-mono">exams</code>, <code className="font-mono">exam_sessions</code>,{' '}
-              <code className="font-mono">tokens</code>, <code className="font-mono">violations</code>,{' '}
-              <code className="font-mono">activity_logs</code>, <code className="font-mono">audit_logs</code>)
+              Otomatis membuat 8 tab lembar kerja (<code className="font-mono">staff_users</code>,{' '}
+              <code className="font-mono">students</code>, <code className="font-mono">exams</code>,{' '}
+              <code className="font-mono">exam_sessions</code>, <code className="font-mono">tokens</code>,{' '}
+              <code className="font-mono">violations</code>, <code className="font-mono">activity_logs</code>,{' '}
+              <code className="font-mono">audit_logs</code>)
             </p>
           </div>
           <div className="flex items-center gap-2 shrink-0">
