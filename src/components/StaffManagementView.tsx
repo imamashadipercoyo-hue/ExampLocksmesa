@@ -1,5 +1,5 @@
 import { useEffect, useState, type FormEvent } from 'react';
-import { CheckCircle2, Plus, ShieldCheck, UserCheck, XCircle } from 'lucide-react';
+import { CheckCircle2, KeyRound, Plus, ShieldCheck, UserCheck, X, XCircle } from 'lucide-react';
 import { ApiError, apiRequest, formatDateTime } from '../lib/api';
 import type { StaffUser } from '../types';
 
@@ -19,6 +19,10 @@ export function StaffManagementView({ authToken, currentUser, onNotify }: StaffM
   const [password, setPassword] = useState('');
   const [classesInput, setClassesInput] = useState('');
   const [submitting, setSubmitting] = useState(false);
+
+  const [passwordModalUser, setPasswordModalUser] = useState<StaffUser | null>(null);
+  const [newPassword, setNewPassword] = useState('');
+  const [savingPassword, setSavingPassword] = useState(false);
 
   const loadStaff = async () => {
     setLoading(true);
@@ -80,6 +84,26 @@ export function StaffManagementView({ authToken, currentUser, onNotify }: StaffM
       await loadStaff();
     } catch (err) {
       onNotify('danger', err instanceof ApiError ? err.message : 'Gagal mengubah status akun.');
+    }
+  }
+
+  async function handleUpdatePassword(e: FormEvent) {
+    e.preventDefault();
+    if (!passwordModalUser) return;
+    setSavingPassword(true);
+    try {
+      await apiRequest(`/api/admin/staff/${passwordModalUser.id}`, {
+        method: 'PATCH',
+        token: authToken,
+        body: { password: newPassword },
+      });
+      onNotify('success', `Kata sandi untuk akun ${passwordModalUser.username} berhasil diperbarui.`);
+      setPasswordModalUser(null);
+      setNewPassword('');
+    } catch (err) {
+      onNotify('danger', err instanceof ApiError ? err.message : 'Gagal memperbarui kata sandi.');
+    } finally {
+      setSavingPassword(false);
     }
   }
 
@@ -223,18 +247,29 @@ export function StaffManagementView({ authToken, currentUser, onNotify }: StaffM
                     <td className="py-3 px-4 font-mono text-slate-500 tabular-nums">
                       {formatDateTime(st.created_at)}
                     </td>
-                    <td className="py-3 px-4 text-right">
-                      {st.id === currentUser.id ? (
-                        <span className="text-slate-400">Akun aktif Anda</span>
-                      ) : (
+                    <td className="py-3 px-4 text-right whitespace-nowrap">
+                      <div className="inline-flex items-center gap-1.5">
                         <button
                           type="button"
-                          onClick={() => handleToggleActive(st)}
-                          className="px-2.5 py-1 rounded-md border border-slate-300 hover:bg-slate-100 text-slate-700 font-semibold transition-colors"
+                          onClick={() => {
+                            setPasswordModalUser(st);
+                            setNewPassword('');
+                          }}
+                          className="px-2.5 py-1 rounded-md border border-slate-300 hover:bg-slate-100 text-slate-700 font-semibold transition-colors inline-flex items-center gap-1"
                         >
-                          {st.active ? 'Nonaktifkan' : 'Aktifkan'}
+                          <KeyRound className="w-3 h-3" />
+                          Ubah Sandi
                         </button>
-                      )}
+                        {st.id !== currentUser.id && (
+                          <button
+                            type="button"
+                            onClick={() => handleToggleActive(st)}
+                            className="px-2.5 py-1 rounded-md border border-slate-300 hover:bg-slate-100 text-slate-700 font-semibold transition-colors"
+                          >
+                            {st.active ? 'Nonaktifkan' : 'Aktifkan'}
+                          </button>
+                        )}
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -243,6 +278,59 @@ export function StaffManagementView({ authToken, currentUser, onNotify }: StaffM
           </div>
         )}
       </div>
+
+      {passwordModalUser && (
+        <div className="fixed inset-0 z-50 bg-slate-950/60 backdrop-blur-[2px] flex items-center justify-center p-4">
+          <div className="bg-white border border-slate-200 rounded-xl max-w-sm w-full shadow-2xl overflow-hidden">
+            <div className="bg-[#0B1F3A] text-white px-5 py-4 flex items-center justify-between">
+              <div>
+                <h2 className="text-sm font-bold">Ubah Kata Sandi</h2>
+                <p className="text-xs text-blue-200 mt-0.5 font-mono">{passwordModalUser.username}</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setPasswordModalUser(null)}
+                className="p-1 text-blue-200 hover:text-white"
+                aria-label="Tutup modal ubah sandi"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+            <form onSubmit={handleUpdatePassword} className="p-5 space-y-4">
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 mb-1">
+                  Kata Sandi Baru (min. 6 karakter)
+                </label>
+                <input
+                  type="password"
+                  required
+                  minLength={6}
+                  value={newPassword}
+                  onChange={(e) => setNewPassword(e.target.value)}
+                  placeholder="Masukkan kata sandi baru"
+                  className="w-full px-3.5 py-2 text-sm border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600"
+                />
+              </div>
+              <div className="flex justify-end gap-2">
+                <button
+                  type="button"
+                  onClick={() => setPasswordModalUser(null)}
+                  className="px-3.5 py-2 rounded-lg border border-slate-300 text-xs font-semibold text-slate-700"
+                >
+                  Batal
+                </button>
+                <button
+                  type="submit"
+                  disabled={savingPassword}
+                  className="px-4 py-2 rounded-lg bg-blue-700 hover:bg-blue-800 disabled:opacity-50 text-white text-xs font-semibold"
+                >
+                  {savingPassword ? 'Menyimpan...' : 'Simpan Sandi'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
