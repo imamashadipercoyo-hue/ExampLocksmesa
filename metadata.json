@@ -1,0 +1,6 @@
+{
+  "name": "UJIAN LOCK SMESA",
+  "description": "Secure Online Examination — SMK Negeri 1 Jember. Sistem gerbang ujian online Google Form, manajemen token, fullscreen lock, monitoring peserta realtime, dan sinkronisasi Google Sheet + Apps Script.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
