@@ -651,8 +651,11 @@ export function StudentPortal({ onOpenStaffLogin, onNotify }: StudentPortalProps
     return (
       <div className="min-h-screen bg-slate-50 flex flex-col">
         <header className="bg-white border-b border-slate-200 px-6 py-4 flex items-center justify-between gap-8">
-          <div className="text-base font-bold tracking-tight text-[#0B1F3A] whitespace-nowrap shrink-0">
-            UJIAN LOCK SMESA
+          <div className="flex items-center gap-2.5 whitespace-nowrap shrink-0">
+            <BrandMark size="xs" />
+            <span className="text-base font-bold tracking-tight text-[#0B1F3A]">
+              UJIAN LOCK SMESA
+            </span>
           </div>
           <div className="text-xs text-slate-500 hidden sm:block truncate">
             {student.nama} · NIS {student.nis} · {student.kelas}
@@ -754,9 +757,10 @@ export function StudentPortal({ onOpenStaffLogin, onNotify }: StudentPortalProps
               e.preventDefault();
               setShowGuide(false);
             }}
-            className="text-base font-extrabold tracking-tight text-[#0B1F3A] whitespace-nowrap shrink-0"
+            className="flex items-center gap-2.5 text-base font-extrabold tracking-tight text-[#0B1F3A] whitespace-nowrap shrink-0"
           >
-            UJIAN LOCK SMESA
+            <BrandMark size="xs" />
+            <span>UJIAN LOCK SMESA</span>
           </a>
 
           <nav className="hidden md:flex items-center gap-7 text-sm font-medium text-slate-600">
