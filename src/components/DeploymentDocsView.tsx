@@ -93,7 +93,7 @@ export function DeploymentDocsView({ authToken, onNotify }: DeploymentDocsViewPr
             <h2 className="text-base font-bold text-[#0B1F3A]">02. Menghubungkan Google Sheet & Apps Script</h2>
             <ol className="list-decimal pl-5 space-y-2 text-xs text-slate-700 leading-relaxed">
               <li>Buat Google Sheet baru bernama <code className="font-mono">DB_UJIAN_LOCK_SMESA</code>.</li>
-              <li>Buka <strong>Ekstensi → Apps Script</strong>, tempel seluruh isi <code className="font-mono">Code.gs</code>, lalu jalankan fungsi <code className="font-mono">setupSheets()</code> sekali untuk membuat 8 tab otomatis (termasuk <code className="font-mono">staff_users</code> untuk akun Admin &amp; Pengawas).</li>
+              <li>Buka <strong>Ekstensi → Apps Script</strong>, tempel seluruh isi <code className="font-mono">Code.gs</code>, lalu jalankan fungsi <code className="font-mono">setupSheets()</code> sekali untuk membuat 9 tab otomatis (termasuk <code className="font-mono">staff_users</code>, <code className="font-mono">majors</code>, dan <code className="font-mono">students</code>).</li>
               <li>Klik <strong>Deploy → New deployment → Web app</strong> (Execute as: <em>Me</em>, Who has access: <em>Anyone</em>).</li>
               <li>Tempel URL Web App ke menu <strong>Google Sheet & Apps Script</strong>, aktifkan <strong>Sinkronisasi Otomatis</strong>, lalu klik <strong>Kirim Semua ke Sheet</strong>.</li>
             </ol>

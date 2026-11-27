@@ -5,6 +5,7 @@ import {
   CalendarClock,
   ClipboardList,
   FileSpreadsheet,
+  GraduationCap,
   KeyRound,
   LayoutDashboard,
   LogOut,
@@ -24,6 +25,7 @@ import { DashboardOverview } from './DashboardOverview';
 import { DeploymentDocsView } from './DeploymentDocsView';
 import { ExamsView } from './ExamsView';
 import { GoogleSheetSyncView } from './GoogleSheetSyncView';
+import { MajorsView } from './MajorsView';
 import { MonitoringView } from './MonitoringView';
 import { SessionDetailModal } from './SessionDetailModal';
 import { StaffManagementView } from './StaffManagementView';
@@ -75,6 +77,7 @@ export function WorkspaceLayout({
   ];
 
   const adminExclusiveItems: NavItem[] = [
+    { id: 'majors', label: 'Master Input Jurusan', icon: GraduationCap, adminOnly: true },
     { id: 'sheet-sync', label: 'Google Sheet & Script', icon: FileSpreadsheet, adminOnly: true },
     { id: 'staff', label: 'Akun Pengawas & Admin', icon: UserCog, adminOnly: true },
     { id: 'audit', label: 'Audit Log Sistem', icon: ClipboardList, adminOnly: true },
@@ -309,6 +312,9 @@ export function WorkspaceLayout({
                   onNotify={onNotify}
                   onNavigate={isAdmin ? setActiveTab : undefined}
                 />
+              )}
+              {activeTab === 'majors' && isAdmin && (
+                <MajorsView snapshot={snapshot} authToken={authToken} onNotify={onNotify} />
               )}
               {activeTab === 'sheet-sync' && isAdmin && (
                 <GoogleSheetSyncView authToken={authToken} onNotify={onNotify} />

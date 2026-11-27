@@ -101,6 +101,7 @@ export class GoogleSheetSyncService {
         secret: cfg.sync_secret || '',
         data: {
           staff_users: sanitizedStaffUsers,
+          majors: state.majors,
           students: state.students,
           exams: state.exams,
           exam_sessions: state.exam_sessions,
@@ -137,6 +138,7 @@ export class GoogleSheetSyncService {
 
       const totalRecords =
         state.staff_users.length +
+        state.majors.length +
         state.students.length +
         state.exams.length +
         state.exam_sessions.length +
@@ -226,6 +228,7 @@ export class GoogleSheetSyncService {
         error?: string;
         data?: {
           staff_users?: Array<Record<string, unknown>>;
+          majors?: Array<Record<string, unknown>>;
           students?: Array<Record<string, unknown>>;
           exams?: Array<Record<string, unknown>>;
         };
@@ -241,6 +244,31 @@ export class GoogleSheetSyncService {
       }
 
       let mergedCount = 0;
+      const incomingMajors = parsed.data?.majors || [];
+      for (const row of incomingMajors) {
+        const kode = String(row.kode ?? '').trim().toUpperCase();
+        const namaJurusan = String(row.nama_jurusan ?? '').trim();
+        if (!kode || !namaJurusan) continue;
+        const rawStatus = String(row.status ?? 'AKTIF').trim().toUpperCase();
+        const status: Student['status'] = rawStatus === 'NONAKTIF' ? 'NONAKTIF' : 'AKTIF';
+
+        const existing = state.majors.find((m) => m.kode.toUpperCase() === kode);
+        if (existing) {
+          existing.nama_jurusan = namaJurusan;
+          existing.status = status;
+          existing.updated_at = nowIso;
+        } else {
+          state.majors.push({
+            id: String(row.id || `maj-${crypto.randomUUID().slice(0, 8)}`),
+            kode,
+            nama_jurusan: namaJurusan,
+            status,
+            updated_at: nowIso,
+          });
+        }
+        mergedCount++;
+      }
+
       const incomingStudents = parsed.data?.students || [];
       for (const row of incomingStudents) {
         const nis = String(row.nis ?? '').trim();
@@ -384,7 +412,7 @@ export class GoogleSheetSyncService {
 
       cfg.last_sync_at = nowIso;
       cfg.last_sync_status = 'SUCCESS';
-      cfg.last_sync_message = `Berhasil menarik ${mergedCount} data Master Siswa, Ujian & Akun Staff dari Google Sheet.`;
+      cfg.last_sync_message = `Berhasil menarik ${mergedCount} data Master Jurusan, Siswa, Ujian & Akun Staff dari Google Sheet.`;
       cfg.history.unshift({
         id: `syn-${crypto.randomUUID().slice(0, 8)}`,
         direction: 'PULL',

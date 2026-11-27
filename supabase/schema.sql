@@ -29,6 +29,16 @@ CREATE TABLE IF NOT EXISTS public.staff_profiles (
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
+-- 2b. TABEL MAJORS (Master Jurusan / Konsentrasi Keahlian)
+CREATE TABLE IF NOT EXISTS public.majors (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  kode TEXT NOT NULL UNIQUE,
+  nama_jurusan TEXT NOT NULL,
+  status TEXT NOT NULL DEFAULT 'AKTIF' CHECK (status IN ('AKTIF', 'NONAKTIF')),
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
 -- 3. TABEL STUDENTS (Master Siswa)
 CREATE TABLE IF NOT EXISTS public.students (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -145,6 +155,7 @@ CREATE INDEX IF NOT EXISTS idx_violations_session ON public.violations(session_i
 
 -- 11. ENABLE ROW LEVEL SECURITY (RLS)
 ALTER TABLE public.staff_profiles ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.majors ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.students ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.exams ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.tokens ENABLE ROW LEVEL SECURITY;
@@ -164,6 +175,10 @@ AS $$
 $$;
 
 -- RLS POLICIES: ADMIN FULL ACCESS
+CREATE POLICY "admin_all_majors" ON public.majors
+  FOR ALL USING (public.get_staff_role() = 'ADMIN');
+CREATE POLICY "pengawas_read_majors" ON public.majors
+  FOR SELECT USING (public.get_staff_role() = 'PENGAWAS');
 CREATE POLICY "admin_all_students" ON public.students
   FOR ALL USING (public.get_staff_role() = 'ADMIN');
 CREATE POLICY "admin_all_exams" ON public.exams

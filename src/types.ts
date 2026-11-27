@@ -41,10 +41,20 @@ export type AuditAction =
   | 'selesai_ujian'
   | 'student_upsert'
   | 'student_bulk_import'
+  | 'major_upsert'
+  | 'major_bulk_import'
   | 'exam_upsert'
   | 'sheet_sync_push'
   | 'sheet_sync_pull'
   | 'staff_upsert';
+
+export interface Major {
+  id: string;
+  kode: string;
+  nama_jurusan: string;
+  status: StudentStatus;
+  updated_at: string;
+}
 
 export interface Student {
   id: string;
@@ -207,6 +217,7 @@ export interface DashboardSnapshot {
   sessions: EnrichedSession[];
   violations: EnrichedViolation[];
   activities: ActivityLog[];
+  majors: Major[];
   students: Student[];
   exams: Exam[];
   tokens: EnrichedToken[];

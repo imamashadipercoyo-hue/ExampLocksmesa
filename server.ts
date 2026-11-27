@@ -1023,6 +1023,109 @@ async function createAppServer() {
     res.json({ ok: true });
   });
 
+  // =========================================================================
+  // ADMIN MASTER INPUT JURUSAN ROUTES
+  // =========================================================================
+
+  app.post('/api/majors', requireStaff(['ADMIN']), (req: AuthRequest, res) => {
+    const { kode, nama_jurusan, status } = req.body ?? {};
+    const cleanKode = String(kode ?? '').trim().toUpperCase();
+    const cleanNama = String(nama_jurusan ?? '').trim();
+    if (!cleanKode || !cleanNama) {
+      return res.status(400).json({ error: 'Kode jurusan dan nama jurusan wajib diisi.' });
+    }
+    const state = store.getState();
+    if (state.majors.some((m) => m.kode.toUpperCase() === cleanKode)) {
+      return res.status(409).json({ error: `Kode jurusan "${cleanKode}" sudah terdaftar.` });
+    }
+    const major = {
+      id: `maj-${crypto.randomUUID().slice(0, 8)}`,
+      kode: cleanKode,
+      nama_jurusan: cleanNama,
+      status: (status === 'NONAKTIF' ? 'NONAKTIF' : 'AKTIF') as 'AKTIF' | 'NONAKTIF',
+      updated_at: new Date().toISOString(),
+    };
+    state.majors.push(major);
+    store.addAudit('major_upsert', req.staff!.full_name, 'ADMIN', major.id, `Menambahkan jurusan ${major.kode} — ${major.nama_jurusan}`);
+    store.save(true);
+    broadcastDashboardUpdate('major:created');
+    res.status(201).json({ major });
+  });
+
+  app.post('/api/majors/bulk', requireStaff(['ADMIN']), (req: AuthRequest, res) => {
+    const rows = Array.isArray(req.body?.majors) ? req.body.majors : [];
+    if (rows.length === 0) {
+      return res.status(400).json({ error: 'Tidak ada data jurusan yang dikirim untuk impor.' });
+    }
+    const state = store.getState();
+    const nowIso = new Date().toISOString();
+    let inserted = 0;
+    let updated = 0;
+
+    for (const row of rows) {
+      const kode = String(row.kode ?? '').trim().toUpperCase();
+      const namaJurusan = String(row.nama_jurusan ?? '').trim();
+      if (!kode || !namaJurusan) continue;
+      const status = String(row.status ?? 'AKTIF').trim().toUpperCase() === 'NONAKTIF' ? 'NONAKTIF' : 'AKTIF';
+
+      const existing = state.majors.find((m) => m.kode.toUpperCase() === kode);
+      if (existing) {
+        existing.nama_jurusan = namaJurusan;
+        existing.status = status;
+        existing.updated_at = nowIso;
+        updated++;
+      } else {
+        state.majors.push({
+          id: `maj-${crypto.randomUUID().slice(0, 8)}`,
+          kode,
+          nama_jurusan: namaJurusan,
+          status,
+          updated_at: nowIso,
+        });
+        inserted++;
+      }
+    }
+
+    store.addAudit('major_bulk_import', req.staff!.full_name, 'ADMIN', null, `Impor Master Jurusan: ${inserted} baru, ${updated} diperbarui`);
+    store.save(true);
+    broadcastDashboardUpdate('major:bulk_imported');
+    res.json({ inserted, updated, total: inserted + updated });
+  });
+
+  app.patch('/api/majors/:id', requireStaff(['ADMIN']), (req: AuthRequest, res) => {
+    const state = store.getState();
+    const major = state.majors.find((m) => m.id === req.params.id);
+    if (!major) return res.status(404).json({ error: 'Data jurusan tidak ditemukan.' });
+
+    const { kode, nama_jurusan, status } = req.body ?? {};
+    if (kode && String(kode).trim().toUpperCase() !== major.kode) {
+      const cleanKode = String(kode).trim().toUpperCase();
+      if (state.majors.some((m) => m.kode.toUpperCase() === cleanKode && m.id !== major.id)) {
+        return res.status(409).json({ error: `Kode jurusan "${cleanKode}" sudah digunakan.` });
+      }
+      major.kode = cleanKode;
+    }
+    if (nama_jurusan) major.nama_jurusan = String(nama_jurusan).trim();
+    if (status === 'AKTIF' || status === 'NONAKTIF') major.status = status;
+    major.updated_at = new Date().toISOString();
+
+    store.addAudit('major_upsert', req.staff!.full_name, 'ADMIN', major.id, `Memperbarui jurusan ${major.kode} — ${major.nama_jurusan}`);
+    store.save(true);
+    broadcastDashboardUpdate('major:updated');
+    res.json({ major });
+  });
+
+  app.delete('/api/majors/:id', requireStaff(['ADMIN']), (req: AuthRequest, res) => {
+    const state = store.getState();
+    const idx = state.majors.findIndex((m) => m.id === req.params.id);
+    if (idx === -1) return res.status(404).json({ error: 'Data jurusan tidak ditemukan.' });
+    const [removed] = state.majors.splice(idx, 1);
+    store.addAudit('major_upsert', req.staff!.full_name, 'ADMIN', removed.id, `Menghapus jurusan ${removed.kode} — ${removed.nama_jurusan}`);
+    store.save(true);
+    broadcastDashboardUpdate('major:deleted');
+    res.json({ ok: true });
+  });
+
   app.get('/api/admin/staff', requireStaff(['ADMIN']), (_req, res) => {
     const staff = store.getState().staff_users.map((u) => ({
       id: u.id,

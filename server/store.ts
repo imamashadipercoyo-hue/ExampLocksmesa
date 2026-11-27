@@ -12,6 +12,7 @@ import type {
   EnrichedViolation,
   Exam,
   ExamSession,
+  Major,
   SheetSyncConfig,
   SheetSyncHistoryItem,
   StaffUser,
@@ -29,6 +30,7 @@ export interface StoredStaffUser extends StaffUser {
 export interface PersistedDatabase {
   initialized_auth: boolean;
   staff_users: StoredStaffUser[];
+  majors: Major[];
   students: Student[];
   exams: Exam[];
   tokens: TokenRecord[];
@@ -141,11 +143,24 @@ export function validateGoogleFormUrl(rawUrl: string): { valid: boolean; normali
   }
 }
 
+function createDefaultMajors(nowIso: string): Major[] {
+  return [
+    { id: 'maj-rpl', kode: 'RPL', nama_jurusan: 'Rekayasa Perangkat Lunak', status: 'AKTIF', updated_at: nowIso },
+    { id: 'maj-tkj', kode: 'TKJ', nama_jurusan: 'Teknik Komputer & Jaringan', status: 'AKTIF', updated_at: nowIso },
+    { id: 'maj-akl', kode: 'AKL', nama_jurusan: 'Akuntansi & Keuangan Lembaga', status: 'AKTIF', updated_at: nowIso },
+    { id: 'maj-bdp', kode: 'BDP', nama_jurusan: 'Bisnis Daring & Pemasaran', status: 'AKTIF', updated_at: nowIso },
+    { id: 'maj-otkp', kode: 'OTKP', nama_jurusan: 'Otomatisasi & Tata Kelola Perkantoran', status: 'AKTIF', updated_at: nowIso },
+    { id: 'maj-dkv', kode: 'DKV', nama_jurusan: 'Desain Komunikasi Visual', status: 'AKTIF', updated_at: nowIso },
+  ];
+}
+
 function createInitialSeed(): PersistedDatabase {
   const now = new Date();
   const today = now.toISOString().slice(0, 10);
   const nowIso = now.toISOString();
   const expiryIso = new Date(now.getTime() + 4 * 60 * 60 * 1000).toISOString();
+
+  const majors: Major[] = createDefaultMajors(nowIso);
 
   const students: Student[] = [
     { id: 'stu-001', nis: '2024001', nama: 'Ahmad Fajar Pratama', kelas: 'XII RPL 1', jurusan: 'Rekayasa Perangkat Lunak', status: 'AKTIF', updated_at: nowIso },
@@ -420,6 +435,7 @@ function createInitialSeed(): PersistedDatabase {
   return {
     initialized_auth: false,
     staff_users: [],
+    majors,
     students,
     exams,
     tokens,
@@ -456,6 +472,10 @@ class SmesaStore {
         const raw = fs.readFileSync(DB_FILE, 'utf8');
         const parsed = JSON.parse(raw) as PersistedDatabase;
         if (parsed && Array.isArray(parsed.students) && Array.isArray(parsed.exams)) {
+          if (!Array.isArray(parsed.majors)) {
+            parsed.majors = createDefaultMajors(new Date().toISOString());
+            this.persist(parsed);
+          }
           return parsed;
         }
       }
@@ -746,6 +766,7 @@ class SmesaStore {
       sessions,
       violations,
       activities,
+      majors: [...this.db.majors],
       students,
       exams,
       tokens,
