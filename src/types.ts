@@ -46,7 +46,8 @@ export type AuditAction =
   | 'exam_upsert'
   | 'sheet_sync_push'
   | 'sheet_sync_pull'
-  | 'staff_upsert';
+  | 'staff_upsert'
+  | 'staff_delete';
 
 export interface Major {
   id: string;

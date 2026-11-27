@@ -1193,10 +1193,17 @@ async function createAppServer() {
     if (Array.isArray(assigned_classes)) {
       found.assigned_classes = assigned_classes.map((c: unknown) => String(c).trim()).filter(Boolean);
     }
-    if (typeof password === 'string' && password.trim().length >= 6) {
+    if (password !== undefined) {
+      if (typeof password !== 'string' || password.trim().length < 6) {
+        return res.status(400).json({ error: 'Kata sandi baru minimal 6 karakter.' });
+      }
       found.password_hash = hashPassword(password.trim());
     }
-    store.addAudit('staff_upsert', req.staff!.full_name, 'ADMIN', found.id, `Memperbarui akun ${found.role} (${found.username})`);
+    const actionSummary =
+      password !== undefined
+        ? `Mengubah kata sandi akun ${found.role} (${found.username})`
+        : `Memperbarui akun ${found.role} (${found.username})`;
+    store.addAudit('staff_upsert', req.staff!.full_name, 'ADMIN', found.id, actionSummary);
     store.save(true);
     broadcastDashboardUpdate('staff:updated');
 
@@ -1211,6 +1218,38 @@ async function createAppServer() {
         created_at: found.created_at,
       },
     });
+  });
+
+  app.delete('/api/admin/staff/:id', requireStaff(['ADMIN']), (req: AuthRequest, res) => {
+    const state = store.getState();
+    const idx = state.staff_users.findIndex((u) => u.id === req.params.id);
+    if (idx === -1) {
+      return res.status(404).json({ error: 'Akun staff tidak ditemukan.' });
+    }
+    const target = state.staff_users[idx];
+    if (target.id === req.staff?.id) {
+      return res.status(400).json({ error: 'Anda tidak dapat menghapus akun yang sedang digunakan.' });
+    }
+    if (target.role === 'ADMIN') {
+      const remainingActiveAdmins = state.staff_users.filter(
+        (u) => u.id !== target.id && u.role === 'ADMIN' && u.active
+      );
+      if (remainingActiveAdmins.length === 0) {
+        return res.status(400).json({ error: 'Minimal harus tersisa satu akun Admin yang aktif.' });
+      }
+    }
+
+    state.staff_users.splice(idx, 1);
+    store.addAudit(
+      'staff_delete',
+      req.staff!.full_name,
+      'ADMIN',
+      target.id,
+      `Menghapus akun ${target.role} (${target.username})`
+    );
+    store.save(true);
+    broadcastDashboardUpdate('staff:deleted');
+    res.json({ ok: true });
   });
 
   app.get('/api/admin/audit-logs', requireStaff(['ADMIN']), (_req, res) => {
